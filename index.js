@@ -1,6 +1,7 @@
 // index.js
 const { Client, GatewayIntentBits } = require('discord.js');
 require('dotenv').config();
+const { EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -9,7 +10,7 @@ const client = new Client({
   ]
 });
 
-TimeSessions = {
+let TimeSessions = {
 
 }
 
@@ -24,24 +25,41 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     channel => channel.name === 'highperformertime' && channel.isTextBased()
   );
 
-  if (!oldState.channel && newState.channel) {
-    logChannel.send(`${user.username} has joined the HighPerformer Call`)
-    let currentTime = new Date();
+if ((!oldState.channel || oldState.channel.name !== "highperformer") 
+      && newState.channel && newState.channel.name === "highperformer") {
+      let currentTime = new Date();
     startTimer(user.username,currentTime)
   }
 
-  if (oldState.channel && !newState.channel) {
-    logChannel.send(`${user.username} is now a lowPerformer because he left the HighPerformer Call`)
+  if (oldState.channel && oldState.channel.name === "highperformer" 
+      && (!newState.channel || newState.channel.name !== "highperformer")) {
     let currentTime = new Date();
     const time = stopTimer(user.username, currentTime)
-    logChannel.send(`${user.username} highperformed for:  ${time}`)
-    console.log(time)
+    const timeSession = TimeSessions[user.username];
+    const embed = new EmbedBuilder()
+    .setColor("#0099ff").setTitle(`${user.username}'s HighPerformer statistics from last Session`)
+    .setThumbnail(user.displayAvatarURL())
+    .addFields(
+      {name: "Joined Call:", value: timeSession.timeJoined.toLocaleString("de-DE", {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})},
+      {name: "Left Call:", value: timeSession.timeLeft.toLocaleString("de-DE", {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})},
+      {name: "Total Time in Session:", value: `**${time}**`}
+    )
+    logChannel.send({ embeds: [embed] });
   }
 });
-console.log("Test")
 client.login(process.env.DISCORD_TOKEN);
-
-
 
 function startTimer(username, currenTime){
   TimeSessions[username]= {
