@@ -1,0 +1,14 @@
+# Node Modules (großer Ordner mit installierten Paketen)
+node_modules/
+
+# Environment Variables (sensibel)
+.env
+
+# Optional: Logs
+logs
+*.log
+npm-debug.log*
+
+# Optional: Betriebssystem-Dateien (Mac, Windows)
+.DS_Store
+Thumbs.db
