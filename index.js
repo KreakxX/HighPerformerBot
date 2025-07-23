@@ -12,7 +12,6 @@ const client = new Client({
   ]
 });
 
-
 client.once('ready', () =>  {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
@@ -63,7 +62,6 @@ client.on(Events.InteractionCreate, async interaction =>{
     })
   }
  
-  
   await interaction.reply({ content: "Response saved!", ephemeral: true });
   }});
 
@@ -74,13 +72,24 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     channel => channel.name === 'highperformertime' && channel.isTextBased()
   );
 
-
 // when joining the highperformer call start the Timer
 if ((!oldState.channel || oldState.channel.name !== "highperformer") 
       && newState.channel && newState.channel.name === "highperformer") {
       let currentTime = new Date();
+    
+    try{
+        const member = newState.member;
+    const roles = member.roles.cache;
+    if(!roles.has('1390387689567686717')){
+       await member.voice.disconnect();
+       return;
+    }
+   
+    }catch(error){
+      console.log(error)
+    }
 
-    // checking if user is in Databse than update else create a new 
+    // checking if user is in Database than update else create a new 
     const user = await Prisma.user.findUnique({
       where:{
         username: DiscordUser.username
@@ -91,7 +100,7 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
     if(!user){
      await Prisma.user.create({
       data:{
-username: DiscordUser.username,
+    username: DiscordUser.username,
         TotalTime: 0,
         TotalTimeLastMonth: 0,
         TotalTimeToday: 0
@@ -119,7 +128,16 @@ username: DiscordUser.username,
       && (!newState.channel || newState.channel.name !== "highperformer")) {
     let currentTime = new Date();
     const time = await stopTimer(DiscordUser.username, currentTime)
-
+     try{
+        const member = newState.member;
+    const roles = member.roles.cache;
+    if(!roles.has('1390387689567686717')){
+       await member.voice.disconnect();
+       return;
+    }
+  }catch(error){
+    console.log(error)
+  }
     // make it for finding the Session and than needing the highperforming and get it 
     // we need to get the last session so we need a created at Field and than sort by it
     const FoundUser = await Prisma.user.findUnique({
@@ -400,8 +418,8 @@ async function sendMessageFromTimeStempHighPerforming(startDate, endDate, userna
         gte: startDate,
         lte: endDate,
       },
-      NOT: {
-      leftTime: null,
+      leftTime: {
+        not: null,   
     },
     },
     });
