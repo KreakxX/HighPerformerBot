@@ -62,9 +62,7 @@ client.on(Events.InteractionCreate, async interaction =>{
     }
     })
   }
-  if(response){
-    await member.setNickName(`${username} | ${response}`)
-  }
+ 
   
   await interaction.reply({ content: "Response saved!", ephemeral: true });
   }});
@@ -241,7 +239,6 @@ async function stopTimer(username, currentTime){
 }
 
 // Commands for getting statistics
-
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const username = interaction.user.username;
@@ -308,9 +305,11 @@ client.on(Events.InteractionCreate, async interaction => {
       {name: "Total Time in Session:", value: `**${time}**`}
     )
     
-  DiscordUser.send({ embeds: [embed] });
-    
-  }
+    interaction.reply({
+      embeds: [embed],
+      ephemeral: true,
+    }); 
+ }
 
   if(interaction.commandName === "dailyhighperforming"){
     const startOfDay = new Date();
@@ -318,7 +317,11 @@ client.on(Events.InteractionCreate, async interaction => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
     const time = await sendMessageFromTimeStempHighPerforming(startOfDay,endOfDay,username)
-    DiscordUser.send(`Daily: **${time}**`)
+    interaction.reply({
+       content: `Daily: **${time}`,
+      ephemeral: true
+    }
+    )
   }
 
   if(interaction.commandName === "monthlyhighperforming"){
@@ -354,9 +357,9 @@ client.on(Events.InteractionCreate, async interaction => {
     .setColor("#0099ff").setTitle(`HighPerforming Leaderboard`)
 
   for (const [user, totalTimeInSeconds] of sortedMap.entries()) {
-  const hours = Math.floor(totalTimeInSeconds / 3600);
-  const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
-  const seconds = totalTimeInSeconds % 60;
+    const hours = Math.floor(totalTimeInSeconds / 3600);
+    const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
+    const seconds = totalTimeInSeconds % 60;
 
   embed.addFields({
     name: `👤 Username:  ${user.username}`,
@@ -365,10 +368,11 @@ client.on(Events.InteractionCreate, async interaction => {
   });
 }
     
-  DiscordUser.send({ embeds: [embed] });
+  interaction.reply({
+    embeds: [embed],
+    ephemeral: true
+  })
   }
-
-
 });
 
 function calculateTimeDifference(startTime, EndTime){
@@ -396,6 +400,9 @@ async function sendMessageFromTimeStempHighPerforming(startDate, endDate, userna
         gte: startDate,
         lte: endDate,
       },
+      NOT: {
+      leftTime: null,
+    },
     },
     });
     
@@ -417,3 +424,6 @@ async function sendMessageFromTimeStempHighPerforming(startDate, endDate, userna
     return time;
 }
 
+// features
+// response auf leaderboard
+// stats anpassen wenn im Call dann nicht die letzte nehmen
