@@ -4,7 +4,6 @@ const { EmbedBuilder } = require('discord.js');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events } = require('discord.js');
 const { PrismaClient } = require('@prisma/client');
 
-
 const Prisma = new  PrismaClient();
 
 const client = new Client({
@@ -112,7 +111,7 @@ username: DiscordUser.username,
       ]
     })    
   }
-  
+
   // when leaving the highperformer call stop the timer
   if (oldState.channel && oldState.channel.name === "highperformer" 
       && (!newState.channel || newState.channel.name !== "highperformer")) {
@@ -228,3 +227,11 @@ async function stopTimer(username, currentTime){
 }
 
 // Commands for getting statistics
+
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'ping') {
+    await interaction.reply('🏓 Pong!');
+  }
+});
