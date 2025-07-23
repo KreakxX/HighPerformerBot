@@ -36,6 +36,7 @@ client.on(Events.InteractionCreate, async interaction =>{
        if (interaction.isModalSubmit() && interaction.customId === 'highperformer_response') {
     const response = interaction.fields.getTextInputValue('focus_input');
     const username = interaction.user.username;
+    const member = interaction.member;
     const user = await Prisma.user.findUnique(
       {
         where:{
@@ -61,6 +62,10 @@ client.on(Events.InteractionCreate, async interaction =>{
     }
     })
   }
+  if(response){
+    await member.setNickName(`${username} | ${response}`)
+  }
+  
   await interaction.reply({ content: "Response saved!", ephemeral: true });
   }});
 
@@ -157,7 +162,6 @@ username: DiscordUser.username,
     )
     
   logChannel.send({ embeds: [embed] });
-    
   }
 });
 client.login(process.env.DISCORD_TOKEN);
