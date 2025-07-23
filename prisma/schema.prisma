@@ -19,16 +19,16 @@ model user {
   username           String    @unique
   TotalTime          Int // make in seconds or minutes and convert back but easier for saving
   TotalTimeLastMonth Int // make in seconds or minutes and convert back but easier for saving
-  TOtalTimeToday     Int
+  TotalTimeToday     Int
   sessions           session[]
 }
 
 model session {
-  id             Int      @id @default(autoincrement())
-  user           user     @relation(fields: [id], references: [id])
+  id             Int       @id @default(autoincrement())
+  user           user      @relation(fields: [userId], references: [id])
   userId         Int
   joinedTime     DateTime
-  leftTime       DateTime
-  highperforming String
-  createdAt      DateTime
+  leftTime       DateTime?
+  highperforming String?
+  createdAt      DateTime  @default(now())
 }

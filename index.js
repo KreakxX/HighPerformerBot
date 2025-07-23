@@ -5,7 +5,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBui
 const { PrismaClient } = require('@prisma/client');
 
 
-const Prisma = PrismaClient();
+const Prisma = new  PrismaClient();
 
 const client = new Client({
   intents: [
@@ -15,7 +15,7 @@ const client = new Client({
 });
 
 
-client.once('ready', () => {
+client.once('ready', () =>  {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
@@ -38,14 +38,14 @@ client.on(Events.InteractionCreate, async interaction =>{
        if (interaction.isModalSubmit() && interaction.customId === 'highperformer_response') {
     const response = interaction.fields.getTextInputValue('focus_input');
     const username = interaction.user.username;
-    const user = Prisma.findUnique(
+    const user = await Prisma.user.findUnique(
       {
         where:{
           username: username
         }
       }
     )
-    const session = Prisma.session.findFirst({
+    const session = await Prisma.session.findFirst({
       where:{
         userId: user.id
       },orderBy: {
@@ -54,7 +54,7 @@ client.on(Events.InteractionCreate, async interaction =>{
   }) 
 
   if(session){
-    Prisma.session.update({
+    await Prisma.session.update({
       where:{
         id: session.id
       },
@@ -64,12 +64,10 @@ client.on(Events.InteractionCreate, async interaction =>{
     })
   }
   await interaction.reply({ content: "Response saved!", ephemeral: true });
+  }});
 
-  }
-    });
-
-client.on('voiceStateUpdate', (oldState, newState) => {
-  const user = newState.member.user;
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  const DiscordUser = newState.member.user;
   const guild = newState.guild;
   const logChannel = guild.channels.cache.find(
     channel => channel.name === 'highperformertime' && channel.isTextBased()
@@ -82,24 +80,27 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
       let currentTime = new Date();
 
     // checking if user is in Databse than update else create a new 
-    const user = Prisma.user.findUnique({
+    const user = await Prisma.user.findUnique({
       where:{
-        username: user.username
+        username: DiscordUser.username
       }
     })
+
     // if no User create one
     if(!user){
-      Prisma.user.create({
-        username: user.username,
+     await Prisma.user.create({
+      data:{
+username: DiscordUser.username,
         TotalTime: 0,
         TotalTimeLastMonth: 0,
-        TOtalTimeToday: 0
+        TotalTimeToday: 0
+      }
       })
     }
       startTimer(user.username,currentTime)
       
     // sending a Button 
-    user.send({
+    DiscordUser.send({
       content: "Was highperformst du ?",
       components: [
         new ActionRowBuilder().addComponents(
@@ -111,19 +112,23 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
       ]
     })    
   }
-
+  
   // when leaving the highperformer call stop the timer
   if (oldState.channel && oldState.channel.name === "highperformer" 
       && (!newState.channel || newState.channel.name !== "highperformer")) {
     let currentTime = new Date();
-    const time = stopTimer(user.username, currentTime)
+    const time = stopTimer(DiscordUser.username, currentTime)
 
     // make it for finding the Session and than needing the highperforming and get it 
     // we need to get the last session so we need a created at Field and than sort by it
-    
-    const Session = Prisma.session.findFirst({
+    const FoundUser = await Prisma.seconds.findUnique({
       where:{
-        userId: user.id
+        username: User.username
+      }
+    })
+    const Session = await Prisma.session.findFirst({
+      where:{
+        userId: FoundUser.id
       },
       orderBy: {
     createdAt: 'desc' 
@@ -132,18 +137,18 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
 
     const highperforming = Session.highperforming || "Keine Angabe"
     const embed = new EmbedBuilder()
-    .setColor("#0099ff").setTitle(`${user.username}'s HighPerformer statistics from last Session`)
+    .setColor("#0099ff").setTitle(`${DiscordUser.username}'s HighPerformer statistics from last Session`)
     .setThumbnail(user.displayAvatarURL())
     .addFields(
       {name: "Highperforming", value: highperforming},
-      {name: "Joined Call:", value: timeSession.joinedTime.toLocaleString("de-DE", {
+      {name: "Joined Call:", value: Session.joinedTime.toLocaleString("de-DE", {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit'
 })},
-      {name: "Left Call:", value: timeSession.leftTime.toLocaleString("de-DE", {
+      {name: "Left Call:", value: Session.leftTime.toLocaleString("de-DE", {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
@@ -160,36 +165,41 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
 client.login(process.env.DISCORD_TOKEN);
 
 
-function startTimer(username, currenTime){
+async function startTimer(username, currenTime){
   // create new Session and add to the User
-  const user = Prisma.user.findUnique({
+  const user =  await Prisma.user.findUnique({
     where: {
       username: username
     }
   })
 
-  Prisma.session.create({
-    user: user,
+  await Prisma.session.create({
+    data:{
+      user: user,
     userId: user.id,
     joinedTime:  currenTime,
     createdAt: currenTime
+    }
   })
 }
 
-function stopTimer(username, currentTime){
-   const user = Prisma.user.findUnique({
+async function stopTimer(username, currentTime){
+   const user = await Prisma.user.findUnique({
     where: {
       username: username
     }
   })
-  const session = Prisma.session.findUnique({
+  const session = await Prisma.session.findFirst({
     where:{
       userId: user.id
+    },orderBy:{
+      createdAt: 'desc' 
+
     }
   })
 
   if(session){
-    Prisma.session.update({
+   await Prisma.session.update({
       where:{
         id: session.id
       },
@@ -200,7 +210,7 @@ function stopTimer(username, currentTime){
     })
   }
 
-  const dateJoined = session.timeJoined;
+  const dateJoined = session.joinedTime;
   const dateLeft = currentTime;
 
   const diffMs = dateLeft - dateJoined;
@@ -217,3 +227,4 @@ function stopTimer(username, currentTime){
   return durationStr.trim();
 }
 
+// Commands for getting statistics
