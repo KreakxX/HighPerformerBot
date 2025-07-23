@@ -12,3 +12,5 @@ npm-debug.log*
 # Optional: Betriebssystem-Dateien (Mac, Windows)
 .DS_Store
 Thumbs.db
+
+/generated/prisma

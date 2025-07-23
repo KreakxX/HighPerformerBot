@@ -1,0 +1,34 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id                 Int       @id @default(autoincrement())
+  username           String    @unique
+  TotalTime          Int // make in seconds or minutes and convert back but easier for saving
+  TotalTimeLastMonth Int // make in seconds or minutes and convert back but easier for saving
+  TOtalTimeToday     Int
+  sessions           session[]
+}
+
+model session {
+  id             Int      @id @default(autoincrement())
+  user           user     @relation(fields: [id], references: [id])
+  userId         Int
+  joinedTime     DateTime
+  leftTime       DateTime
+  highperforming String
+  createdAt      DateTime
+}

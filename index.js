@@ -1,8 +1,11 @@
-// index.js
 const { Client, GatewayIntentBits } = require('discord.js');
 require('dotenv').config();
 const { EmbedBuilder } = require('discord.js');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events } = require('discord.js');
+const { PrismaClient } = require('@prisma/client');
+
+
+const Prisma = PrismaClient();
 
 const client = new Client({
   intents: [
@@ -11,9 +14,6 @@ const client = new Client({
   ]
 });
 
-let TimeSessions = {
-
-}
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
@@ -38,12 +38,32 @@ client.on(Events.InteractionCreate, async interaction =>{
        if (interaction.isModalSubmit() && interaction.customId === 'highperformer_response') {
     const response = interaction.fields.getTextInputValue('focus_input');
     const username = interaction.user.username;
-    TimeSessions[username] = {
-    timeLeft: TimeSessions[username].timeLeft,
-    timeJoined: TimeSessions[username].timeJoined,
-    highperforming: response
+    const user = Prisma.findUnique(
+      {
+        where:{
+          username: username
+        }
+      }
+    )
+    const session = Prisma.session.findFirst({
+      where:{
+        userId: user.id
+      },orderBy: {
+        createdAt: 'desc' 
+  }
+  }) 
+
+  if(session){
+    Prisma.session.update({
+      where:{
+        id: session.id
+      },
+       data: {
+      highperforming: response
     }
-        await interaction.reply({ content: "Response saved!", ephemeral: true });
+    })
+  }
+  await interaction.reply({ content: "Response saved!", ephemeral: true });
 
   }
     });
@@ -56,11 +76,27 @@ client.on('voiceStateUpdate', (oldState, newState) => {
   );
 
 
-  // when joining the highperformer call start the Timer
+// when joining the highperformer call start the Timer
 if ((!oldState.channel || oldState.channel.name !== "highperformer") 
       && newState.channel && newState.channel.name === "highperformer") {
       let currentTime = new Date();
-    startTimer(user.username,currentTime)
+
+    // checking if user is in Databse than update else create a new 
+    const user = Prisma.user.findUnique({
+      where:{
+        username: user.username
+      }
+    })
+    // if no User create one
+    if(!user){
+      Prisma.user.create({
+        username: user.username,
+        TotalTime: 0,
+        TotalTimeLastMonth: 0,
+        TOtalTimeToday: 0
+      })
+    }
+      startTimer(user.username,currentTime)
       
     // sending a Button 
     user.send({
@@ -81,21 +117,33 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
       && (!newState.channel || newState.channel.name !== "highperformer")) {
     let currentTime = new Date();
     const time = stopTimer(user.username, currentTime)
-    const timeSession = TimeSessions[user.username];
-    const highperforming = timeSession.highperforming || "Keine Angabe"
+
+    // make it for finding the Session and than needing the highperforming and get it 
+    // we need to get the last session so we need a created at Field and than sort by it
+    
+    const Session = Prisma.session.findFirst({
+      where:{
+        userId: user.id
+      },
+      orderBy: {
+    createdAt: 'desc' 
+  }
+    })
+
+    const highperforming = Session.highperforming || "Keine Angabe"
     const embed = new EmbedBuilder()
     .setColor("#0099ff").setTitle(`${user.username}'s HighPerformer statistics from last Session`)
     .setThumbnail(user.displayAvatarURL())
     .addFields(
       {name: "Highperforming", value: highperforming},
-      {name: "Joined Call:", value: timeSession.timeJoined.toLocaleString("de-DE", {
+      {name: "Joined Call:", value: timeSession.joinedTime.toLocaleString("de-DE", {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit'
 })},
-      {name: "Left Call:", value: timeSession.timeLeft.toLocaleString("de-DE", {
+      {name: "Left Call:", value: timeSession.leftTime.toLocaleString("de-DE", {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
@@ -111,21 +159,49 @@ if ((!oldState.channel || oldState.channel.name !== "highperformer")
 });
 client.login(process.env.DISCORD_TOKEN);
 
+
 function startTimer(username, currenTime){
-  TimeSessions[username]= {
-    timeJoined: currenTime
-  }
+  // create new Session and add to the User
+  const user = Prisma.user.findUnique({
+    where: {
+      username: username
+    }
+  })
+
+  Prisma.session.create({
+    user: user,
+    userId: user.id,
+    joinedTime:  currenTime,
+    createdAt: currenTime
+  })
 }
 
 function stopTimer(username, currentTime){
-  TimeSessions[username]= {
-    timeLeft: currentTime,
-    timeJoined: TimeSessions[username].timeJoined,
-    highperforming: TimeSessions[username].highperforming
+   const user = Prisma.user.findUnique({
+    where: {
+      username: username
+    }
+  })
+  const session = Prisma.session.findUnique({
+    where:{
+      userId: user.id
+    }
+  })
+
+  if(session){
+    Prisma.session.update({
+      where:{
+        id: session.id
+      },
+       data: {
+      leftTime: currentTime,
+      highperforming: session.highperforming
+    }
+    })
   }
 
-  const dateJoined = TimeSessions[username].timeJoined;
-  const dateLeft = TimeSessions[username].timeLeft;
+  const dateJoined = session.timeJoined;
+  const dateLeft = currentTime;
 
   const diffMs = dateLeft - dateJoined;
 
@@ -141,9 +217,3 @@ function stopTimer(username, currentTime){
   return durationStr.trim();
 }
 
-
-
-// Button asking Field in Chat for everyone client sided so we can check if they are still highperforming
-// Noch Angabe was man highperformed am Anfang wenn man Joined oder das man irgendwie approven muss
-// nur wer highperformer rolle hat dann wird gesendet also Rolle bekommen und checken
-// gucken auch ob bei changen es gecallt wird also wenn man call schriebt muss auch gesendet werden  // also das auch noch checken
