@@ -95,7 +95,7 @@ username: DiscordUser.username,
       }
       })
     }
-      await startTimer(user.username,currentTime)
+    await startTimer(DiscordUser.username,currentTime)
       
     // sending a Button 
     DiscordUser.send({
@@ -311,22 +311,59 @@ client.on(Events.InteractionCreate, async interaction => {
   if(interaction.commandName === "dailyhighperforming"){
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);  
-
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-    sendMessageFromTimeStempHighPerforming(startOfDay,endOfDay,"Daily",username, DiscordUser)
+    const time = await sendMessageFromTimeStempHighPerforming(startOfDay,endOfDay,username)
+    DiscordUser.send(`Daily: **${time}**`)
   }
 
-  if(interaction.command === "monthlyhighperforming"){
+  if(interaction.commandName === "monthlyhighperforming"){
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    sendMessageFromTimeStempHighPerforming(startOfMonth,endOfMonth,"Monthly",username, DiscordUser)
+    const time = await sendMessageFromTimeStempHighPerforming(startOfMonth,endOfMonth,username, )
+    DiscordUser.send(`Monthly: **${time}**`)
   }
 
-  if(interaction.command === "leaderboard"){
+  if(interaction.commandName === "leaderboard"){
+    const map = new Map();
+    const users = await  Prisma.user.findMany();
+    
+    for (const user of users) {
+      let totalTime = 0;
 
+    const sessions = await Prisma.session.findMany({
+      where: { userId: user.id },
+    });
+
+    for (const session of sessions) {
+      const time = calculateTimeDifference(session.joinedTime, session.leftTime);
+      totalTime += time;
+    }
+    map.set(user,totalTime)
   }
+
+  const entries = Array.from(map.entries());
+  entries.sort(([, valueA], [, valueB]) => valueB - valueA);
+  const sortedMap = new Map(entries);
+   const embed = new EmbedBuilder()
+    .setColor("#0099ff").setTitle(`HighPerforming Leaderboard`)
+
+  for (const [user, totalTimeInSeconds] of sortedMap.entries()) {
+  const hours = Math.floor(totalTimeInSeconds / 3600);
+  const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
+  const seconds = totalTimeInSeconds % 60;
+
+  embed.addFields({
+    name: `👤 Username:  ${user.username}`,
+    value: `⏱️ ${hours}h ${minutes}m ${seconds}s`,
+    inline: false,
+  });
+}
+    
+  DiscordUser.send({ embeds: [embed] });
+  }
+
 
 });
 
@@ -340,13 +377,13 @@ function calculateTimeDifference(startTime, EndTime){
   return totalSeconds;
 }
 
-async function sendMessageFromTimeStempHighPerforming(startDate, endDate, type, username, DiscordUser){
-  const user = Prisma.user.findUnique({
+async function sendMessageFromTimeStempHighPerforming(startDate, endDate, username){
+  const user = await Prisma.user.findUnique({
       where:{
         username: username
       }
     })
-    const dailyTime = 0
+    let dailyTime = 0
 
     const Sessions = await Prisma.session.findMany({
     where: {
@@ -359,7 +396,7 @@ async function sendMessageFromTimeStempHighPerforming(startDate, endDate, type, 
     });
     
     Sessions.forEach(session =>{
-      const SessionTime = calculateTimeDifference(session.joinedTime,session.EndTime);
+      const SessionTime = calculateTimeDifference(session.joinedTime,session.leftTime);
       dailyTime += SessionTime;
     })
 
@@ -373,6 +410,6 @@ async function sendMessageFromTimeStempHighPerforming(startDate, endDate, type, 
     if (hours === 0 && minutes === 0) durationStr += `${seconds} second${seconds !== 1 ? 's' : ''}`;
 
     const time = durationStr.trim()
-    DiscordUser.send(`${type}: **${time}**`)
+    return time;
 }
 
